@@ -117,6 +117,7 @@ found:
 
   //My implementation
   p->nsyscall = 0;
+  set_priority(p, 10);
 
   return p;
 }
@@ -397,6 +398,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
+  myproc()->pass += myproc()->stride;
   sched();
   release(&ptable.lock);
 }
@@ -478,6 +480,7 @@ wakeup1(void *chan)
 void
 wakeup(void *chan)
 {
+
   acquire(&ptable.lock);
   wakeup1(chan);
   release(&ptable.lock);
