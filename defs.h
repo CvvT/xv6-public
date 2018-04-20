@@ -123,6 +123,7 @@ void            yield(void);
 //My implementation
 int 			countproc(void);
 int             nmpage(void);
+void            set_priority(struct proc *p, int ticket);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

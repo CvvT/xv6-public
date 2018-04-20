@@ -119,3 +119,15 @@ sys_info(void) {
 
   return ret;
 }
+
+int
+sys_priority(void) {
+  struct proc *p = myproc();
+  int ticket;
+
+  if (argint(0, &ticket) < 0)
+    return -1;
+
+  set_priority(p, ticket);
+  return 0;
+}

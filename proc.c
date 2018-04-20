@@ -14,6 +14,8 @@ struct {
 
 static struct proc *initproc;
 
+const int stride1 = 1 << 10;
+
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -346,6 +348,7 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -563,4 +566,11 @@ int
 nmpage(void) {
   struct proc *p = myproc();
   return PGROUNDUP(p->sz) / PGSIZE;
+}
+
+// initialize client with specified allocation
+void set_priority(struct proc *p, int ticket) {
+  p->ticket = ticket;
+  p->stride = stride1 / ticket;
+  p->pass = p->stride;
 }

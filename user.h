@@ -25,6 +25,7 @@ int sleep(int);
 int uptime(void);
 //My implementation
 int info(int);
+int priority(int);
 
 // ulib.c
 int stat(char*, struct stat*);

@@ -51,8 +51,10 @@ struct proc {
   char name[16];               // Process name (debugging)
   //My inplementation
   uint nsyscall;               // Number of system call that have been made so far
+  int ticket, stride, pass;  // used for stride scheduler
 };
 
+extern const int stride1;
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
