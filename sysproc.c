@@ -89,3 +89,33 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+//My implementation of SYSTEM CALL
+#define SYSINFO_PROCESS 1
+#define SYSINFO_SYSCALL 2
+#define SYSINFO_PAGE    3
+
+int
+sys_info(void) {
+  int n;
+  int ret = -1;
+
+  if(argint(0, &n) < 0)
+    return -1;
+
+  switch (n) {
+    case SYSINFO_PROCESS:
+      ret = countproc();
+      break;
+    case SYSINFO_SYSCALL:
+      ret = countsyscall();
+      break;
+    case SYSINFO_PAGE:
+      ret = nmpage();
+      break;
+    default:
+      break;
+  }
+
+  return ret;
+}

@@ -112,6 +112,10 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+
+  //My implementation
+  p->nsyscall = 0;
+
   return p;
 }
 
@@ -199,6 +203,9 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+
+  // Copy system call counter (seems wrong)
+  // np->nsyscall = curproc->nsyscall;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -531,4 +538,29 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+// Return a count of the processes in the system
+int 
+countproc(void) {
+  int ret = 0;
+  struct proc *p;
+
+  acquire(&ptable.lock);
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state != UNUSED)
+      ret++;
+
+  release(&ptable.lock);
+
+  return ret;
+}
+
+// Return the number of memory pages the current process is using, 
+// excluding the kernel memory pages
+int
+nmpage(void) {
+  struct proc *p = myproc();
+  return PGROUNDUP(p->sz) / PGSIZE;
 }
