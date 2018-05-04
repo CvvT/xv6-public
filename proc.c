@@ -14,7 +14,7 @@ struct {
 
 static struct proc *initproc;
 
-const int stride1 = 1 << 10;
+const int stride1 = 6000;
 
 int nextpid = 1;
 extern void forkret(void);
@@ -117,7 +117,7 @@ found:
 
   //My implementation
   p->nsyscall = 0;
-  set_priority(p, 10);
+  set_priority(p, stride1);
 
   return p;
 }
@@ -262,8 +262,15 @@ exit(void)
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
 
+  cprintf("Ticks value of each program\n");
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if (p->state == RUNNABLE || p->state == RUNNING)
+    //   //print ticks
+      cprintf("%s(%d): %d\n", p->name, p->pid, p->pass / p->stride);
+    // if (p == curproc)
+      // cprintf("find itshelf\n");
+
     if(p->parent == curproc){
       p->parent = initproc;
       if(p->state == ZOMBIE)
@@ -273,6 +280,7 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+  cprintf("%s(%d) exit: %d\n", curproc->name, curproc->pid, curproc->pass / curproc->stride);
   sched();
   panic("zombie exit");
 }
@@ -333,6 +341,7 @@ void
 scheduler(void)
 {
   struct proc *p;
+  struct proc *min;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -342,10 +351,19 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    p = min = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      // stride scheduler
       if(p->state != RUNNABLE)
         continue;
 
+      if (min == 0 || p->pass < min->pass) {
+        min = p;
+      }
+    }
+
+    p = min;
+    if (p != 0 && p->state == RUNNABLE) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -379,6 +397,11 @@ sched(void)
   int intena;
   struct proc *p = myproc();
 
+  // Every process that gives up CPU should invoke this function, don't it?
+  // Running time less than one tick will also be counted? But it seems OK if
+  // no process invokes blocking operations.
+  p->pass += p->stride;
+
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -398,7 +421,6 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
-  myproc()->pass += myproc()->stride;
   sched();
   release(&ptable.lock);
 }
@@ -575,5 +597,5 @@ nmpage(void) {
 void set_priority(struct proc *p, int ticket) {
   p->ticket = ticket;
   p->stride = stride1 / ticket;
-  p->pass = p->stride;
+  p->pass = p->stride; //what about the running time taken before setting the priority?
 }
