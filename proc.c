@@ -117,6 +117,7 @@ found:
 
   //My implementation
   p->nsyscall = 0;
+  p->lastticks = 0;
   set_priority(p, stride1);
 
   return p;
@@ -419,8 +420,15 @@ sched(void)
 void
 yield(void)
 {
+  struct proc *p;
   acquire(&ptable.lock);  //DOC: yieldlock
-  myproc()->state = RUNNABLE;
+  p = myproc();
+  // myproc()->state = RUNNABLE;
+  p->state = RUNNABLE;
+#if 0
+  cprintf("pid:%d resp: %d\n", p->pid, ticks - p->lastticks);
+  p->lastticks = ticks;
+#endif
   sched();
   release(&ptable.lock);
 }
@@ -577,7 +585,7 @@ countproc(void) {
   acquire(&ptable.lock);
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state != UNUSED)
+    if(p->state != UNUSED && p->state != ZOMBIE)
       ret++;
 
   release(&ptable.lock);

@@ -52,6 +52,7 @@ struct proc {
   //My inplementation
   uint nsyscall;               // Number of system call that have been made so far
   int ticket, stride, pass;  // used for stride scheduler
+  int lastticks;                // last tick when yield
 };
 
 extern const int stride1;
