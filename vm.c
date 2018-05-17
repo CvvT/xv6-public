@@ -357,7 +357,7 @@ uva2ka(pde_t *pgdir, char *uva)
   return (char*)P2V(PTE_ADDR(*pte));
 }
 
-// Copy len bytes from p to user address va in page table pgdir.
+// Copy len bytes from program p to user address va in page table pgdir.
 // Most useful when pgdir is not the current page table.
 // uva2ka ensures this only works for PTE_U pages.
 int
