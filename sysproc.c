@@ -97,7 +97,7 @@ sys_clone(void) {
 
   if (argptr(0, (char**)&stack, sizeof(stack)) < 0)
     return -1;
-  if (argint(0, &size) < 0)
+  if (argint(1, &size) < 0)
     return -1;
 
   return clone(stack, size);

@@ -383,6 +383,28 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
+int
+copyto(pde_t *pgdir, uint va, void *p, uint len) {
+  char *buf, *pa0;
+  uint n, va0;
+
+  buf = (char*)p;
+  while(len > 0){
+    va0 = (uint)PGROUNDDOWN(va);
+    pa0 = uva2ka(pgdir, (char*)va0);
+    if(pa0 == 0)
+      return -1;
+    n = PGSIZE - (va - va0);
+    if(n > len)
+      n = len;
+    memmove(buf, pa0 + (va - va0), n);
+    len -= n;
+    buf += n;
+    va = va0 + PGSIZE;
+  }
+  return 0;
+}
+
 //PAGEBREAK!
 // Blank page.
 //PAGEBREAK!

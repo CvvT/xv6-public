@@ -225,6 +225,9 @@ int clone(void *stack, int size) {
   int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
+  int sp;
+  uint ustack[10];
+  int argn = 10;
 
   if ((np = allocproc()) == 0)
     return -1;
@@ -232,9 +235,19 @@ int clone(void *stack, int size) {
   np->pgdir = curproc->pgdir;
   np->sz = curproc->sz;
   np->parent = curproc;
+  // *np->context = *curproc->context;
   *np->tf = *curproc->tf;
 
-  np->tf->esp = (int)stack + size;
+  sp = (int)stack + size;
+  sp -= argn*4;
+  np->tf->esp = sp;
+  cprintf("%d %p %d %x\n", curproc->pid, stack, size, np->tf->eip);
+  if(copyto(curproc->pgdir, curproc->tf->esp, ustack, argn*4) < 0)
+    panic("copy error1");
+  if (copyout(np->pgdir, sp, ustack, argn*4) < 0)
+    panic("copy error2");
+  for (i = 0; i < argn; i++)
+    cprintf("%x\n", ustack[i]);
   // clearpteu(np->pgdir, (char*)(np->sz - 2*PGSIZE));
 
   // Clear %eax so that clone returns 0 in the child.
@@ -445,7 +458,6 @@ forkret(void)
     iinit(ROOTDEV);
     initlog(ROOTDEV);
   }
-
   // Return to "caller", actually trapret (see allocproc).
 }
 
