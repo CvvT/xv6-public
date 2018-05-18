@@ -88,6 +88,9 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  // my initilization
+  p->siblings = 0;
+  p->opid = p->pid;
 
   release(&ptable.lock);
 
@@ -226,11 +229,15 @@ int clone(void *stack, int size) {
   struct proc *np;
   struct proc *curproc = myproc();
   int sp;
-  uint ustack[10];
-  int argn = 10;
+  uint ustack[20];
+  int argn = 15;
 
   if ((np = allocproc()) == 0)
     return -1;
+
+  // keep track of siblings
+  curproc->siblings += 1;
+  np->opid = curproc->pid;
 
   np->pgdir = curproc->pgdir;
   np->sz = curproc->sz;
@@ -241,13 +248,15 @@ int clone(void *stack, int size) {
   sp = (int)stack + size;
   sp -= argn*4;
   np->tf->esp = sp;
-  cprintf("%d %p %d %x\n", curproc->pid, stack, size, np->tf->eip);
+  // cprintf("%d %p %d %x\n", curproc->pid, stack, size, np->tf->eip);
   if(copyto(curproc->pgdir, curproc->tf->esp, ustack, argn*4) < 0)
     panic("copy error1");
   if (copyout(np->pgdir, sp, ustack, argn*4) < 0)
     panic("copy error2");
-  for (i = 0; i < argn; i++)
-    cprintf("%x\n", ustack[i]);
+  cprintf("!0x%x\n", curproc->tf->esp);
+  for (i = argn-1; i >= 0; i--)
+    cprintf("0x%x %x\n", sp+4*i, ustack[i]);
+  cprintf("-----------------\n");
   // clearpteu(np->pgdir, (char*)(np->sz - 2*PGSIZE));
 
   // Clear %eax so that clone returns 0 in the child.
@@ -279,23 +288,27 @@ exit(void)
 {
   struct proc *curproc = myproc();
   struct proc *p;
+  struct proc *root = 0;
   int fd;
 
   if(curproc == initproc)
     panic("init exiting");
 
   // Close all open files.
-  for(fd = 0; fd < NOFILE; fd++){
-    if(curproc->ofile[fd]){
-      fileclose(curproc->ofile[fd]);
-      curproc->ofile[fd] = 0;
+  // We only do this when we make sure it's the only thread left
+  if (curproc->siblings == 0 && curproc->parent->pgdir != curproc->pgdir) {
+    for(fd = 0; fd < NOFILE; fd++){
+      if(curproc->ofile[fd]){
+        fileclose(curproc->ofile[fd]);
+        curproc->ofile[fd] = 0;
+      }
     }
-  }
 
-  begin_op();
-  iput(curproc->cwd);
-  end_op();
-  curproc->cwd = 0;
+    begin_op();
+    iput(curproc->cwd);
+    end_op();
+    curproc->cwd = 0;
+  }
 
   acquire(&ptable.lock);
 
@@ -305,14 +318,32 @@ exit(void)
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
-      p->parent = initproc;
-      if(p->state == ZOMBIE)
-        wakeup1(initproc);
+      if (p->pgdir != curproc->pgdir) { // we know that they are two different processes
+        p->parent = initproc;
+        if(p->state == ZOMBIE)
+          wakeup1(initproc);
+      } else {
+        if (root == 0) {// we choose the first sibling as the new root of the subtree originally rooted at curproc
+          root = p;
+          root->parent = curproc->parent;
+          root->siblings = curproc->siblings - 1;
+        } else {
+          p->parent = root; // rest of siblings should be the children of the new root
+        }
+      }
     }
   }
 
   // Jump into the scheduler, never to return.
-  curproc->state = ZOMBIE;
+  if (curproc->siblings == 0 && curproc->parent->pgdir != curproc->pgdir) {
+    curproc->state = ZOMBIE;
+  } else {
+    curproc->pid = 0;
+    curproc->parent = 0;
+    curproc->name[0] = 0;
+    curproc->killed = 0;
+    curproc->state = UNUSED;
+  }
   sched();
   panic("zombie exit");
 }
@@ -336,7 +367,7 @@ wait(void)
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
-        pid = p->pid;
+        pid = p->opid;
         kfree(p->kstack);
         p->kstack = 0;
         freevm(p->pgdir);
