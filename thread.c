@@ -98,7 +98,7 @@ int thread_create(void *(*start_routine)(void*), void *arg) {
 // test program below
 
 struct spinlock lock;
-int nround, nthread, location, passes;
+int volatile nround, nthread, location, passes;
 
 void *routine(void *arg) {
 	// printf(1, "addr2: %p\n", &arg);
@@ -107,10 +107,10 @@ void *routine(void *arg) {
 	while(passes <= nround) {
 		if (location == token) {
 			acquire(&lock);
-			printf(1, "thread %d acquire\n", token);
+			// printf(1, "thread %d acquire\n", token);
 
 			if (location != token) {
-				printf(1, "thread %d release\n", token);
+				// printf(1, "thread %d release\n", token);
 				release(&lock);
 				continue;
 			}
@@ -118,12 +118,12 @@ void *routine(void *arg) {
 			passes++;
 			printf(1, "Pass number no: %d, Thread %d is passing the token to thread %d\n", passes, token, location);
 			if (passes == nround) {
-				printf(1, "thread %d release\n", token);
+				// printf(1, "thread %d release\n", token);
 				release(&lock);
 				break;
 			}
 
-			printf(1, "thread %d release\n", token);
+			// printf(1, "thread %d release\n", token);
 			release(&lock);
 		}
 	}
