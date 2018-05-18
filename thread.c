@@ -74,47 +74,65 @@ release(struct spinlock *lk)
 
 int thread_create(void *(*start_routine)(void*), void *arg) {
 	void *nstack;
+	void *sp;
 	int pid;
-
-	
 	
 	nstack = (void*)sbrk(PGSIZE*2);
-	printf(1, "addr1: %p %p\n", &arg, nstack);
+	sp = (void*)((int)nstack +PGSIZE*2 - 3*4);
+	*(int*)sp = (int)start_routine;
+	*(int*)(sp+4) = (int)&exit;
+	*(int*)(sp+8) = (int)arg;
+	// printf(1, "addr1: %p %p\n", &arg, nstack);
 	// printf(1, "%p %d\n", nstack, PGSIZE*2);
 	if ((pid = clone(nstack, PGSIZE*2))) {
 		// printf(1, "hello from parent\n");
-		printf(1, "id1: %d\n", arg);
+		// printf(1, "id1: %d\n", arg);
 		return pid;
-	} else { // deal with calling convention
-		// printf(1, "hello from child\n");
-		// printf(1, "id2: %d\n", arg);
-		start_routine(arg);
 	}
-	exit();
+
+	printf(2, "never call this function\n");
+	return -1;
 }
 
 
 // test program below
 
 struct spinlock lock;
-int nround, location, passes;
+int nround, nthread, location, passes;
 
 void *routine(void *arg) {
-	printf(1, "addr2: %p\n", &arg);
-	printf(1, "id3: %d\n", arg);
-	// while(1) {
-	// 	if (location == id) {
-	// 		acquire(&lock);
+	// printf(1, "addr2: %p\n", &arg);
+	int token = (int)arg;
+	// printf(1, "id3: %d\n", token);
+	while(passes <= nround) {
+		if (location == token) {
+			acquire(&lock);
+			printf(1, "thread %d acquire\n", token);
 
-	// 		release(&lock);
-	// 	}
-	// }
+			if (location != token) {
+				printf(1, "thread %d release\n", token);
+				release(&lock);
+				continue;
+			}
+			location = (location+1) % nthread;
+			passes++;
+			printf(1, "Pass number no: %d, Thread %d is passing the token to thread %d\n", passes, token, location);
+			if (passes == nround) {
+				printf(1, "thread %d release\n", token);
+				release(&lock);
+				break;
+			}
+
+			printf(1, "thread %d release\n", token);
+			release(&lock);
+		}
+	}
 	return NULL;
 }
 
 int
 main(int argc, char *argv[]) {
-	int nthread, i;
+	int i;
 
 	if (argc < 3) {
 		printf(2, "too few arguments\n");
@@ -125,11 +143,11 @@ main(int argc, char *argv[]) {
 	nround = atoi(argv[2]);
 
 	initlock(&lock);
-	location = 1;
-	passes = 1;
+	location = 0;
+	passes = 0;
 
-	for (i = 1; i <= nthread; i++) {
-		thread_create(&routine, (void*)(i*10));
+	for (i = 0; i < nthread; i++) {
+		thread_create(&routine, (void*)i);
 	}
 	// thread_create(routine, NULL);
 	// while (1)

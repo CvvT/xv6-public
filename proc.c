@@ -229,8 +229,8 @@ int clone(void *stack, int size) {
   struct proc *np;
   struct proc *curproc = myproc();
   int sp;
-  uint ustack[20];
-  int argn = 15;
+  // uint ustack[20];
+  int argn = 3;
 
   if ((np = allocproc()) == 0)
     return -1;
@@ -249,14 +249,14 @@ int clone(void *stack, int size) {
   sp -= argn*4;
   np->tf->esp = sp;
   // cprintf("%d %p %d %x\n", curproc->pid, stack, size, np->tf->eip);
-  if(copyto(curproc->pgdir, curproc->tf->esp, ustack, argn*4) < 0)
-    panic("copy error1");
-  if (copyout(np->pgdir, sp, ustack, argn*4) < 0)
-    panic("copy error2");
-  cprintf("!0x%x\n", curproc->tf->esp);
-  for (i = argn-1; i >= 0; i--)
-    cprintf("0x%x %x\n", sp+4*i, ustack[i]);
-  cprintf("-----------------\n");
+  // if(copyto(curproc->pgdir, sp, ustack, argn*4) < 0)
+  //   panic("copy error1");
+  // if (copyout(np->pgdir, sp, ustack, argn*4) < 0)
+  //   panic("copy error2");
+  // cprintf("!0x%x\n", np->tf->esp);
+  // for (i = argn-1; i >= 0; i--)
+  //   cprintf("0x%x %x\n", sp+4*i, ustack[i]);
+  // cprintf("-----------------\n");
   // clearpteu(np->pgdir, (char*)(np->sz - 2*PGSIZE));
 
   // Clear %eax so that clone returns 0 in the child.
