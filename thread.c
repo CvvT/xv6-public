@@ -98,7 +98,9 @@ int thread_create(void *(*start_routine)(void*), void *arg) {
 // test program below
 
 struct spinlock lock;
-int volatile nround, nthread, location, passes;
+int nround, nthread;
+int volatile location;
+int volatile passes;
 
 void *routine(void *arg) {
 	// printf(1, "addr2: %p\n", &arg);
@@ -109,21 +111,25 @@ void *routine(void *arg) {
 			acquire(&lock);
 			// printf(1, "thread %d acquire\n", token);
 
-			if (location != token) {
-				// printf(1, "thread %d release\n", token);
+			if (location != token) { // double check it's my turn
+				// printf(1, "[+]thread %d release\n", token);
 				release(&lock);
 				continue;
 			}
-			location = (location+1) % nthread;
-			passes++;
-			printf(1, "Pass number no: %d, Thread %d is passing the token to thread %d\n", passes, token, location);
-			if (passes == nround) {
-				// printf(1, "thread %d release\n", token);
+
+			if (passes > nround) {
+				// printf(1, "[-]thread %d release\n", token);
 				release(&lock);
 				break;
 			}
 
-			// printf(1, "thread %d release\n", token);
+			location = (location+1) % nthread;
+			printf(1, "Pass number no: %d, Thread %d is passing the token to thread %d\n", passes, token, location);
+			// printf(1, "[*]thread %d release\n", token);
+			if (passes == nround) {
+				printf(1, "\nSimulation of Frisbee game has finished, %d rounds were played in total!\n", nround);
+			}
+			passes++;
 			release(&lock);
 		}
 	}
@@ -144,7 +150,7 @@ main(int argc, char *argv[]) {
 
 	initlock(&lock);
 	location = 0;
-	passes = 0;
+	passes = 1;
 
 	for (i = 0; i < nthread; i++) {
 		thread_create(&routine, (void*)i);

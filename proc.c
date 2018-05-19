@@ -344,6 +344,7 @@ exit(void)
     curproc->killed = 0;
     curproc->state = UNUSED;
   }
+
   sched();
   panic("zombie exit");
 }
