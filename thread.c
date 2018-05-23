@@ -86,6 +86,15 @@ static inline int fetch_and_inc(int* variable, int value) {
   return value;
 }
 
+static volatile uint readMem(uint *variable, int value) {
+	__asm__ volatile("xaddl %0, %1"
+    : "+r" (value), "+m" (*variable) // input+output
+    : // No input-only
+    : "memory"
+  );
+  return value;
+}
+
 void initArrayLock(struct spinlock *arraylock) {
 	int i;
 	arraylock[0].locked = 0;
@@ -104,20 +113,23 @@ holding_array(struct spinlock *lock)
 
 int array_acquire(struct spinlock *arraylock) {
 	int index;
+	struct spinlock *cur;
 	index = fetch_and_inc(&counter, 1);
+	cur = &arraylock[index % ARRAY_LEN];
 	
-	while (arraylock[index % ARRAY_LEN].locked == 1);
+	// printf(1, "%d waiting %d\n", index, getpid());
+	while (readMem(&cur->locked, 0) == 1);
 
 	__sync_synchronize();
 
-	arraylock[index % ARRAY_LEN].pid = getpid();
+	cur->pid = getpid();
 	return index;
 }
 
 void array_release(struct spinlock *arraylock, int index) {
 	struct spinlock *next;
 	if (!holding_array(&arraylock[index % ARRAY_LEN])) {
-		printf(2, "release\n");
+		printf(2, "release!\n");
     	return;
 	}
 
@@ -126,8 +138,11 @@ void array_release(struct spinlock *arraylock, int index) {
 	// arraylock[index+1].locked = 0;
 	next = &arraylock[(index + 1) % ARRAY_LEN];
 
+	// printf(1, "%d release\n", index+1);
+	
 	 __sync_synchronize();
 	 asm volatile("movl $0, %0" : "+m" (next->locked) : );
+	 // printf(1, "new %d\n", next->locked);
 }
 
 // Thread Creation
@@ -168,7 +183,7 @@ void *routine(void *arg) {
 	while(passes <= nround) {
 		if (location == token) {
 			acquire(&lock);
-			// printf(1, "thread %d acquire\n", token);
+			printf(1, "thread %d acquire\n", token);
 
 			if (location != token) { // double check it's my turn
 				// printf(1, "[+]thread %d release\n", token);
@@ -201,7 +216,7 @@ void *routine_arraylock(void *arg) {
 	int index;
 	// printf(1, "id3: %d\n", token);
 	while(passes <= nround) {
-		if (location == token) {
+		// if (location == token) {
 			index = array_acquire(arraylock);
 			// printf(1, "thread %d acquire\n", token);
 
@@ -225,7 +240,7 @@ void *routine_arraylock(void *arg) {
 			}
 			passes++;
 			array_release(arraylock, index);
-		}
+		// }
 	}
 	return NULL;
 }
@@ -243,6 +258,7 @@ main(int argc, char *argv[]) {
 	nround = atoi(argv[2]);
 
 	initlock(&lock);
+	initArrayLock(arraylock);
 	location = 0;
 	passes = 1;
 
