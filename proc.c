@@ -334,9 +334,14 @@ exit(void)
     }
   }
 
+  if (root == 0 && curproc->pgdir == curproc->parent->pgdir) {
+    curproc->parent->siblings -= 1;
+  }
+
   // Jump into the scheduler, never to return.
   if (curproc->siblings == 0 && curproc->parent->pgdir != curproc->pgdir) {
     curproc->state = ZOMBIE;
+    cprintf("Exit time %d\n", ticks);
   } else {
     curproc->pid = 0;
     curproc->parent = 0;
