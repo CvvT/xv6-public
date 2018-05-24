@@ -86,8 +86,10 @@ static inline int fetch_and_inc(int* variable, int value) {
   return value;
 }
 
-static volatile uint readMem(uint *variable, int value) {
-	__asm__ volatile("xaddl %0, %1"
+static volatile uint readMem(uint *variable) {
+	int value = 0;
+
+	__asm__ volatile("mov %1, %0"
     : "+r" (value), "+m" (*variable) // input+output
     : // No input-only
     : "memory"
@@ -118,7 +120,7 @@ int array_acquire(struct spinlock *arraylock) {
 	cur = &arraylock[index % ARRAY_LEN];
 	
 	// printf(1, "%d waiting %d\n", index, getpid());
-	while (readMem(&cur->locked, 0) == 1);
+	while (readMem(&cur->locked) == 1);
 
 	__sync_synchronize();
 
@@ -183,7 +185,7 @@ void *routine(void *arg) {
 	while(passes <= nround) {
 		if (location == token) {
 			acquire(&lock);
-			printf(1, "thread %d acquire\n", token);
+			// printf(1, "thread %d acquire\n", token);
 
 			if (location != token) { // double check it's my turn
 				// printf(1, "[+]thread %d release\n", token);
@@ -216,7 +218,7 @@ void *routine_arraylock(void *arg) {
 	int index;
 	// printf(1, "id3: %d\n", token);
 	while(passes <= nround) {
-		// if (location == token) {
+		if (location == token) {
 			index = array_acquire(arraylock);
 			// printf(1, "thread %d acquire\n", token);
 
@@ -240,7 +242,7 @@ void *routine_arraylock(void *arg) {
 			}
 			passes++;
 			array_release(arraylock, index);
-		// }
+		}
 	}
 	return NULL;
 }
